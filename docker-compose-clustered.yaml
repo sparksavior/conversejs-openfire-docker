@@ -1,0 +1,71 @@
+version: "3.4"
+
+services:
+  postgres:
+    hostname: postgres
+    image: postgres:15-alpine
+    restart: always
+    volumes:
+      - dendrite_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: itsasecret
+      POSTGRES_USER: dendrite
+      POSTGRES_DATABASE: dendrite
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dendrite"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  monolith:
+    image: matrixdotorg/dendrite-monolith:latest
+    ports:
+      - 8008:8008
+      - 8448:8448
+    volumes:
+      - ./matrix/config:/etc/dendrite
+      - dendrite_media:/var/dendrite/media
+      - dendrite_jetstream:/var/dendrite/jetstream
+      - dendrite_search_index:/var/dendrite/searchindex
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+    restart: unless-stopped
+
+  conversejs:
+    build:
+      context: ./converse-js
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    networks:
+      - internal
+
+  dozzle:
+    image: amir20/dozzle:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 9999:8080
+    networks:
+      - internal
+
+networks:
+  internal:
+    attachable: true
+    driver: bridge
+
+volumes:
+  dendrite_postgres_data:
+  dendrite_media:
+  dendrite_jetstream:
+  dendrite_search_index:

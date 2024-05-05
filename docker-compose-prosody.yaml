@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  prosody:
+    build:
+      context: ./prosody
+      dockerfile: Dockerfile
+    ports:
+      - "5222:5222"
+      - "5280:5280"
+      - "5281:5281"
+    restart: unless-stopped  # Add this line to keep the container running
+
+  conversejs:
+    build:
+      context: ./converse-js
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - prosody
